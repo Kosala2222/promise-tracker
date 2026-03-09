@@ -1,0 +1,56 @@
+// backend/routes/citizenRoutes.js
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const multer = require('multer');
+const { protect, citizen } = require('../../middleware/authMiddleware'); // ASSUMED PATH
+const citizenController = require('../../controllers/citizen/citizenController');
+const evidenceController = require('../../controllers/EvidenceController');
+const promiseController = require('../../controllers/PromiseController'); // You'll need a public version
+
+// --- Citizen Profile & Following ---
+router.route('/profile')
+    .get(protect, citizen, citizenController.getProfile)
+    .post(protect, citizen, citizenController.updateProfile); // Update interests
+
+// Achievements (evidence-based points)
+router.get('/achievements', protect, citizen, citizenController.getAchievements);
+
+// Photo upload storage and route
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '../../uploads/profilePhotos'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        cb(null, uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.post('/profile/photo', protect, citizen, upload.single('photo'), citizenController.uploadProfilePhoto);
+
+router.route('/follow/:politicianId')
+    .post(protect, citizen, citizenController.toggleFollow);
+
+// --- Browse Politicians ---
+router.get('/politicians', citizenController.getAllPoliticians); // Publicly accessible
+
+// --- Evidence Submission ---
+router.route('/evidence/:promiseId')
+    .post(protect, citizen, evidenceController.submitEvidence)
+    .get(evidenceController.getEvidenceForPromise); // Might be public/semi-public
+
+// --- Promises (You'll need a way to fetch ALL public promises from ALL politicians)
+// You may need to create a new controller/function in PromiseController for this.
+// Example: router.get('/promises/all', promiseController.getPublicPromises); 
+
+module.exports = router;

@@ -1,0 +1,44 @@
+// backend/models/PoliticianProfile.js
+
+const mongoose = require('mongoose');
+
+const PoliticianProfileSchema = new mongoose.Schema({
+    // Link to the main User document for the politician
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        // unique: true, // A politician user can only have one profile
+    },
+    party: {
+        type: String,
+        required: [true, 'Political party is required'],
+        trim: true,
+    },
+    position: {
+        type: String,
+        required: [true, 'Position/Office is required'],
+        trim: true,
+    },
+    bio: {
+        type: String,
+        maxlength: 500,
+        default: '',
+    },
+    profilePhotoUrl: {
+        type: String,
+        default: 'default_avatar.png',
+    },
+    // Innovative Feature: Profile Verification Badge
+    isVerified: {
+        type: Boolean,
+        default: false,
+    },
+    // Innovative Feature: Link politician to their promises (managed via Promise model)
+    // You could theoretically cache metrics here, but we'll calculate them live for now.
+
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('PoliticianProfile', PoliticianProfileSchema);

@@ -1,0 +1,70 @@
+// backend/server.js
+
+const express = require('express');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
+
+dotenv.config();
+
+const authRoutes = require('./routes/authRoutes');
+const politicianRoutes = require('./routes/politician/politicianRoutes'); // <--- NEW IMPORT
+const promiseRoutes = require('./routes/promiseRoutes');
+const citizenRoutes = require('./routes/citizen/citizenRoutes');
+const ngoRoutes = require('./routes/ngo/ngoRoutes');
+const journalistRoutes = require('./routes/journalist/journalistRoutes');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Ensure upload directories exist
+const uploadsDir = path.join(__dirname, 'uploads');
+const profilePhotosDir = path.join(uploadsDir, 'profilePhotos');
+const evidenceDir = path.join(uploadsDir, 'evidence');
+const promisePhotosDir = path.join(uploadsDir, 'promisePhotos');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+if (!fs.existsSync(profilePhotosDir)) fs.mkdirSync(profilePhotosDir);
+if (!fs.existsSync(evidenceDir)) fs.mkdirSync(evidenceDir);
+if (!fs.existsSync(promisePhotosDir)) fs.mkdirSync(promisePhotosDir);
+
+// Serve static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- DATABASE CONNECTION ---
+const MONGO_URI = process.env.MONGO_URI;
+
+const connectDB = async () => {
+    if (!MONGO_URI) {
+        console.error("FATAL ERROR: MONGO_URI is not defined in the .env file.");
+        process.exit(1);
+    }
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log('MongoDB successfully connected!');
+    } catch (error) {
+        console.error('MongoDB connection error:', error.message);
+        process.exit(1);
+    }
+};
+
+// --- API Routes ---
+app.use('/api/auth', authRoutes); 
+app.use('/api/politician', politicianRoutes); // <--- NEW ROUTE INTEGRATION
+app.use('/api/promises', promiseRoutes); // <--- NEW ROUTE INTEGRATION
+app.use('/api/citizen', citizenRoutes); // <--- NEW ROUTE INTEGRATION
+app.use('/api/ngo', ngoRoutes); // <--- NEW ROUTE 
+app.use('/api/journalist', journalistRoutes); // <--- NEW ROUTE INTEGRATION
+
+app.get('/', (req, res) => {
+    res.status(200).send('Promise Tracker API is running.');
+});
+
+// Start the server
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    });
+});

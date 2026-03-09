@@ -1,0 +1,162 @@
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import axios from 'axios';
+import { AuthContext } from '../../../context/AuthContext';
+import { API_BASE_URL } from '../../../config/env';
+import CitizenBottomBar from '../../../components/CitizenBottomBar';
+
+const PROFILE_API = `${API_BASE_URL}/citizen/profile`;
+const PROMISES_API = `${API_BASE_URL}/promises/politician`;
+const POLITICIANS_API = `${API_BASE_URL}/citizen/politicians`;
+
+const CitizenNotificationScreen = () => {
+  const { user, token } = useContext(AuthContext);
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // 1) Get followed politicians from the citizen profile
+        const profileRes = await axios.get(PROFILE_API, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+        const profile = profileRes.data || {};
+        const followed = Array.isArray(profile.followedPoliticians) ? profile.followedPoliticians : [];
+
+        if (!followed.length) {
+          setNotifications([]);
+          setLoading(false);
+          return;
+        }
+
+        // Optional: fetch politicians directory to enrich usernames
+        let politicianMap = {};
+        try {
+          const polRes = await axios.get(POLITICIANS_API);
+          const arr = Array.isArray(polRes.data) ? polRes.data : (polRes.data?.politicians || []);
+          arr.forEach(p => { if (p?._id) politicianMap[p._id] = p; });
+        } catch {}
+
+        // 2) For each followed politician, fetch their recent promises
+        const promisesResponses = await Promise.allSettled(
+          followed.map((polId) => axios.get(`${PROMISES_API}/${polId}`))
+        );
+
+        const items = [];
+        for (const pr of promisesResponses) {
+          if (pr.status === 'fulfilled') {
+            const list = Array.isArray(pr.value.data) ? pr.value.data : [];
+            list.forEach((p) => {
+              const fallbackName = politicianMap[p?.politician?._id]?.username || politicianMap[p?.politician]?.username || 'A politician';
+              const politicianName = p?.politician?.user?.username || p?.politician?.username || fallbackName;
+              const title = p?.title || 'Untitled promise';
+              items.push({
+                id: p?._id || `${politicianName}-${title}`,
+                createdAt: p?.createdAt || null,
+                message: `${politicianName} has created a promise, "${title}"`,
+              });
+            });
+          }
+        }
+
+        // 3) Sort by newest first
+        items.sort((a, b) => {
+          const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return db - da;
+        });
+
+        setNotifications(items);
+      } catch (e) {
+        Alert.alert('Error', e?.response?.data?.message || 'Failed to load notifications');
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const headerText = useMemo(() => {
+    const name = user?.username ? `, ${user.username}` : '';
+    return `Notifications${name}`;
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={styles.loadingText}>Loading notifications...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+        showsVerticalScrollIndicator
+        bounces
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.header}>{headerText}</Text>
+        <Text style={styles.subheader}>Recent promises from politicians you follow</Text>
+
+        <View style={styles.list}>
+        {notifications.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No notifications yet</Text>
+            <Text style={styles.emptyText}>Follow politicians and you will see their new promises here.</Text>
+          </View>
+        ) : (
+          notifications.map((n) => (
+            <View key={n.id} style={styles.notificationCard}>
+              <View style={styles.dot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.message}>{n.message}</Text>
+                {!!n.createdAt && (
+                  <Text style={styles.timestamp}>{new Date(n.createdAt).toLocaleString()}</Text>
+                )}
+              </View>
+            </View>
+          ))
+        )}
+        </View>
+      </ScrollView>
+      <CitizenBottomBar />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F9FAFB', paddingHorizontal: 20, paddingTop: 24 },
+  center: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10, color: '#6B7280' },
+  header: { fontSize: 28, fontWeight: '800', color: '#111827' },
+  subheader: { marginTop: 4, color: '#6B7280', marginBottom: 16 },
+  list: { flex: 1 },
+  notificationCard: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981', marginRight: 10, marginTop: 6 },
+  message: { color: '#111827', fontWeight: '600' },
+  timestamp: { color: '#6B7280', fontSize: 12, marginTop: 4 },
+  emptyCard: { backgroundColor: 'white', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', marginTop: 12 },
+  emptyTitle: { fontWeight: '800', color: '#1F2937', marginBottom: 4 },
+  emptyText: { textAlign: 'center', color: '#6B7280' },
+});
+
+export default CitizenNotificationScreen;

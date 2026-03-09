@@ -1,0 +1,27 @@
+// frontend/navigation/PoliticianStack.jsx
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import PoliticianDashboard from '../screens/App/politician/PoliticianDashboard';
+import PoliticianProfileScreen from '../screens/App/politician/PoliticianProfileScreen';
+import PoliticianPromisesScreen from '../screens/App/politician/PoliticianPromisesScreen'; // We will create this next
+import AddPromiseScreen from '../screens/App/politician/AddPromiseScreen'; // <-- NEW IMPORT
+import PoliticianAchievementsScreen from '../screens/App/politician/PoliticianAchievementsScreen';
+import PoliticianAnalyticsScreen from '../screens/App/politician/PoliticianAnalyticsScreen';
+
+const Stack = createNativeStackNavigator();
+
+const PoliticianStack = () => {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="PoliticianHome" component={PoliticianDashboard} />
+            <Stack.Screen name="PoliticianProfile" component={PoliticianProfileScreen} />
+            {/* This screen will be created in future steps,citizen voter ehema haduwama */}
+            <Stack.Screen name="PoliticianPromises" component={PoliticianPromisesScreen} />
+            <Stack.Screen name="AddPromise" component={AddPromiseScreen} />
+            <Stack.Screen name="PoliticianAchievements" component={PoliticianAchievementsScreen} />
+            <Stack.Screen name="PoliticianAnalytics" component={PoliticianAnalyticsScreen} />
+        </Stack.Navigator>
+    );
+};
+
+export default PoliticianStack;

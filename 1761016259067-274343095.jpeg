@@ -1,0 +1,22 @@
+// backend/models/ngo/ngoProfile.js
+const mongoose = require('mongoose');
+
+const NgoProfileSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
+  },
+  organization: { type: String, required: true, trim: true },
+  position: { type: String, required: true, trim: true },
+  experience: { type: String, default: '', trim: true },
+  bio: { type: String, default: '', maxlength: 800 },
+  nic: { type: String, required: true, trim: true },
+  organizationContactNo: { type: String, required: true, trim: true },
+  organizationEmail: { type: String, required: true, trim: true },
+  profilePhotoUrl: { type: String, default: '' },
+}, { timestamps: true });
+
+module.exports = mongoose.model('NgoProfile', NgoProfileSchema);
+//ngo

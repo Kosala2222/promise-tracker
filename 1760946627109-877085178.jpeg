@@ -1,0 +1,76 @@
+const mongoose = require('mongoose');
+
+// Define the schema for evidence submitted by citizens
+const evidenceSchema = new mongoose.Schema({
+    citizen: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+    },
+    comment: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+    },
+    link: {
+        type: String,
+        trim: true,
+    },
+    photoUrl: {
+        type: String,
+        trim: true,
+    },
+    submittedAt: {
+        type: Date,
+        default: Date.now,
+    },
+    // For gamification/accuracy checks:
+    contributionPoints: {
+        type: Number,
+        default: 5, // Award points upon submission
+    },
+    verified: {
+        type: Boolean,
+        default: false,
+    }
+}, { _id: true }); // Ensure evidence sub-documents have their own IDs
+
+const promiseSchema = new mongoose.Schema({
+    politician: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PoliticianProfile',
+        required: true,
+    },
+    title: {
+        type: String,
+        required: [true, 'Promise title is required'],
+        trim: true,
+        maxlength: 120,
+    },
+    description: {
+        type: String,
+        required: [true, 'Promise description is required'],
+        trim: true,
+        maxlength: 1000,
+    },
+    sourceUrl: {
+        type: String,
+        trim: true,
+    },
+    imageUrl: {
+        type: String,
+        trim: true,
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'In Progress', 'Completed', 'Failed'],
+        default: 'Pending',
+    },
+    dueDate: {
+        type: Date,
+    },
+    // New field to store citizen evidence submissions
+    evidence: [evidenceSchema],
+}, { timestamps: true });
+
+module.exports = mongoose.model('Promise', promiseSchema);

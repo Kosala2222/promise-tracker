@@ -1,0 +1,47 @@
+const express = require('express');
+const path = require('path');
+const multer = require('multer');
+const router = express.Router();
+// IMPORTANT: Ensure this path is correct for your middleware
+const { protect, ngoOrJournalistOnly, ngoOnly } = require('../../middleware/authMiddleware'); 
+const ngoController = require('../../controllers/ngo/ngoController');
+const ngoProfileController = require('../../controllers/ngo/ngoProfileController');
+
+// Multer storage for profile photos
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '../../uploads/profilePhotos'));
+    },
+    filename: function (req, file, cb) {
+        const ext = path.extname(file.originalname) || '.jpg';
+        cb(null, `ngo_${req.user._id}_${Date.now()}${ext}`);
+    }
+});
+const upload = multer({ storage });
+
+// All routes require authentication and the 'ngo' role
+
+// --- PROMISE MANAGEMENT ---
+// Get all promises for dashboard view
+router.get('/promises', protect, ngoOrJournalistOnly, ngoController.getAllPromisesForModeration);
+
+// Update promise status and details (Main moderation action)
+router.put('/promises/:promiseId', protect, ngoOrJournalistOnly, ngoController.updatePromiseByNgo);
+
+// --- EVIDENCE MANAGEMENT ---
+// Get evidence for a specific promise
+router.get('/evidence/:promiseId', protect, ngoOrJournalistOnly, ngoController.getEvidenceForModeration);
+
+// Approve/Reject a specific piece of evidence
+router.put('/evidence/:evidenceId/verify', protect, ngoOrJournalistOnly, ngoController.verifyEvidence);
+
+// --- POLITICIAN VERIFICATION ---
+// Verify a politician profile (by User ID)
+router.put('/politicians/:politicianId/verify', protect, ngoOnly, ngoController.verifyPolitician);
+
+// --- NGO PROFILE ---
+router.get('/profile/me', protect, ngoOnly, ngoProfileController.getMyProfile);
+router.put('/profile', protect, ngoOnly, ngoProfileController.upsertProfile);
+router.post('/profile/photo', protect, ngoOnly, upload.single('photo'), ngoProfileController.uploadProfilePhoto);
+
+module.exports = router;

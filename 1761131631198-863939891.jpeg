@@ -1,0 +1,40 @@
+// backend/routes/promiseRoutes.js
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const multer = require('multer');
+const promiseController = require('../controllers/PromiseController');
+const evidenceController = require('../controllers/EvidenceController');
+const { protect, citizen } = require('../middleware/authMiddleware'); 
+
+// --- PUBLIC PROMISE VIEWS ---
+router.get('/all', promiseController.getAllPromises); 
+router.get('/politician/:politicianId', promiseController.getPublicPromisesByPolitician);
+
+// --- EVIDENCE ENDPOINTS ---
+// Submission requires citizen login, viewing is public/semi-public
+// Multer storage for evidence uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '../uploads/evidence'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        cb(null, uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only images or PDF files are allowed'));
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+
+router.route('/evidence/:promiseId')
+    .post(protect, citizen, upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'pdf', maxCount: 1 }]), evidenceController.submitEvidence) 
+    .get(evidenceController.getEvidenceForPromise); 
+
+module.exports = router;

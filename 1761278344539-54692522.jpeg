@@ -1,0 +1,48 @@
+// backend/routes/journalistRoutes.js
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const multer = require('multer');
+// IMPORTANT: Ensure this path is correct for your middleware
+const { protect, ngoOrJournalistOnly, journalistOnly } = require('../../middleware/authMiddleware'); 
+const journalistController = require('../../controllers/journalist/journalistController');
+
+// All routes require authentication and the 'journalist' role
+
+// --- DASHBOARD & REPORTING DATA ---
+// Get aggregated performance data for all politicians (Task 1 & 2)
+router.get('/performance', protect, ngoOrJournalistOnly, journalistController.getPerformanceDashboardData);
+
+// --- FACT-CHECK INTEGRATION (Task 3) ---
+// Get verified community ratings/evidence for a specific promise
+router.get('/promise/:promiseId/verified-evidence', protect, ngoOrJournalistOnly, journalistController.getVerifiedEvidenceForPromise);
+
+// --- Journalist Profile ---
+router.get('/profile', protect, journalistOnly, journalistController.getProfile);
+router.post('/profile', protect, journalistOnly, journalistController.updateProfile);
+
+// Photo upload storage and route (reuse uploads/profilePhotos)
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '../../uploads/profilePhotos'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        cb(null, uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+router.post('/profile/photo', protect, journalistOnly, upload.single('photo'), journalistController.uploadProfilePhoto);
+
+// --- Evidence Summary ---
+router.get('/evidence/summary', protect, journalistOnly, journalistController.getEvidenceSummary);
+
+module.exports = router;
